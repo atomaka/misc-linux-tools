@@ -2,6 +2,7 @@
 use strict;
 use Net::Ping;
 use POSIX;
+use Socket;
 use Time::HiRes qw/time/;
 
 if($> != 0) {
@@ -10,6 +11,7 @@ if($> != 0) {
 
 my $alive = 1;
 my $time = 0;
+my $name = 0;
 my($start,$finish);
 while($ARGV[0] =~ /\-/) {
   my $arg = shift(@ARGV);
@@ -22,6 +24,8 @@ while($ARGV[0] =~ /\-/) {
       $alive = 0;
     } elsif($switch eq "r") {
       $alive = 1;
+    } elsif($switch eq "n") {
+      $name = 1;
     } elsif($switch eq "t") {
       $time = 1;
     } elsif($switch eq "h") {
@@ -40,38 +44,47 @@ if(scalar(@ARGV) < 1 || scalar(@ARGV) > 2) {
 $start = time if($time);
 my $p = Net::Ping->new('icmp');
 my @ips;
-if(scalar(@ARGV) == 2) {
-  # must be IP addresses
-  if($ARGV[0] !~ /((?:\d{1,3}\.){3}\d{1,3})/ || $ARGV[1] !~ /((?:\d{1,3}\.){3}\d{1,3})/) {
-    die("Both arguments must be IP addresses if two are specified.\n");
-  }
 
-  # and only the final octet should differ
-  my @ip1 = split(/\./, $ARGV[0]);
-  my @ip2 = split(/\./, $ARGV[1]);
-  if($ip1[0] != $ip2[0] || $ip1[1] != $ip2[1] || $ip1[2] != $ip2[2]) {
-    die("The first three octets of the IP addresses must match.\n")
-  }
-
-  my $baseIp = $ip1[0] . '.' . $ip1[1] . '.' . $ip1[2];
-  my $start = $ip1[3];
-  my $end = $ip2[3];
-  my $count = $ip2[3] - $ip1[3] + 1;
-
-  for(my $i = $start, my $k = 1; $i <= $end; $i++, $k++) {
-    $| = 1;
-   
-    progressBar($k, $count);
-
-    my $ip = $baseIp . '.' . $i;
-
-    push(@ips, $ip) if($p->ping($ip, 1) == $alive);
-  }
-} elsif(scalar(@ARGV) == 1) {
-  my $host = $ARGV[0];
-  
-  push(@ips, $host) if($p->ping($host, 1) == $alive);
+# must be IP addresses
+if($ARGV[0] !~ /((?:\d{1,3}\.){3}\d{1,3})/ || (defined($ARGV[1]) && $ARGV[1] !~ /((?:\d{1,3}\.){3}\d{1,3})/)) {
+  die("Both arguments must be IP addresses if two are specified.\n");
 }
+
+# and only the final octet should differ
+my @ip1 = split(/\./, $ARGV[0]);
+my @ip2;
+if(scalar(@ARGV) == 2) {
+  @ip2 = split(/\./, $ARGV[1]);
+} else {
+  @ip2 = @ip1;
+}
+
+if($ip1[0] != $ip2[0] || $ip1[1] != $ip2[1] || $ip1[2] != $ip2[2]) {
+  die("The first three octets of the IP addresses must match.\n")
+}
+
+my $baseIp = $ip1[0] . '.' . $ip1[1] . '.' . $ip1[2];
+my $start = $ip1[3];
+my $end = $ip2[3];
+my $count = $ip2[3] - $ip1[3] + 1;
+
+for(my $i = $start, my $k = 1; $i <= $end; $i++, $k++) {
+  $| = 1;
+ 
+  progressBar($k, $count);
+
+  my $ip = $baseIp . '.' . $i;
+
+  if($p->ping($ip, 1) == $alive) {
+    if($name) {
+      my $hostaddr = gethostbyaddr(inet_aton($ip), AF_INET);
+      $ip = $hostaddr if($hostaddr ne "");
+    }
+
+    push(@ips, $ip);
+  }
+}
+
 $p->close();
 $finish = time if($time);
 
@@ -124,6 +137,7 @@ sub progressBar {
 sub help {
   print "usage:\t pinger [-d] start [finish]\n\n";
   print "\t-d\t\tList dead addresses\n";
+  print "\t-n\t\tReturn list as hostnames when possible\n";
   print "\t-r\t\tList reachable addresses (default)\n";
   print "\t-t\t\tTime ping execution\n";
   exit(1);
