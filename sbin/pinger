@@ -1,39 +1,31 @@
 #!/usr/bin/env perl
 use strict;
+use Getopt::Std;
 use Net::Ping;
 use POSIX;
 use Socket;
+use Switch;
 use Time::HiRes qw/time/;
 
 if($> != 0) {
   die("pinger must be run as root\n");
 }
 
+my %switches;
 my $alive = 1;
 my $time = 0;
 my $name = 0;
 my($start,$finish);
-while($ARGV[0] =~ /\-/) {
-  my $arg = shift(@ARGV);
-  $arg =~ s/-//;
 
-  my @switches = split('', $arg);
-
-  foreach my $switch (@switches) {
-    if($switch eq "d") {
-      $alive = 0;
-    } elsif($switch eq "r") {
-      $alive = 1;
-    } elsif($switch eq "n") {
-      $name = 1;
-    } elsif($switch eq "t") {
-      $time = 1;
-    } elsif($switch eq "h") {
-      help();
-    } else {
-      print "pinger: invalid option -- '$switch'\n";
-      help();
-    }
+my $status = getopts('drnth', \%switches);
+help() if(!$status || $switches{'h'});
+for (keys %switches) {
+  switch($_) {
+    case 'd'    { $alive = 0; }
+    case 'r'    { $alive = 1; }
+    case 'n'    { $name = 1; }
+    case 't'    { $time = 1; }
+    else        {}
   }
 }
 
