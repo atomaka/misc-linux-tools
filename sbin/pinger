@@ -14,13 +14,14 @@ $| = 1;
 die("pinger must be run as root\n") if($> != 0);
 
 my $alive = 1;
-my(%switches, $time, $name, $force, $startTime, $finishTime);
+my(%switches, $both, $time, $name, $force, $startTime, $finishTime);
 
 # handle command line options
-my $status = getopts('dfrnth', \%switches);
+my $status = getopts('bdfrnth', \%switches);
 help() if(!$status || $switches{'h'});
 for (keys %switches) {
   switch($_) {
+    case 'b'    { $both = 1; $name = 1; }
     case 'd'    { $alive = 0; }
     case 'f'    { $force = 1; }
     case 'r'    { $alive = 1; }
@@ -72,7 +73,9 @@ for(my $i = $start, my $k = 1; $i <= $end; $i++, $k++) {
   if($reachable == $alive) {
     if($name && ($reachable || $force)) {
       my $hostaddr = gethostbyaddr(inet_aton($ip), AF_INET);
-      $ip = $hostaddr if($hostaddr ne "");
+      if($hostaddr ne "") {
+        $ip = ($both) ? "$ip\t$hostaddr" : "$hostaddr";
+      }
     }
 
     push(@ips, $ip);
@@ -83,7 +86,8 @@ $finishTime = time if($time);
 
 print "\n\n";
 ($alive) ? print "Reachable:\n" : print "Dead:\n";
-print join(", ", @ips);
+my $delimeter = ($both) ? "\n" : ", ";
+print join($delimeter, @ips);
 print "\n\n";
 
 if($time) {
@@ -128,6 +132,7 @@ sub progressBar {
 
 sub help {
   print "usage:\t pinger [-d] start [finish]\n\n";
+  print "\t-b\t\tList both hostname and ip address\n";
   print "\t-d\t\tList dead addresses\n";
   print "\t-f\t\tForce hostname lookup even if unreachable\n";
   print "\t-n\t\tReturn list as hostnames when possible\n";
