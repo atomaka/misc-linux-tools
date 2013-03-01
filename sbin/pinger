@@ -15,10 +15,10 @@ $| = 1;
 die("pinger must be run as root\n") if($> != 0);
 
 my $alive = 1;
-my(%switches, $all, $both, $time, $name, $force, $startTime, $finishTime);
+my(%switches, $all, $print, $both, $time, $name, $force, $startTime, $finishTime);
 
 # handle command line options
-my $status = getopts('abdfrnth', \%switches);
+my $status = getopts('abdfrnpth', \%switches);
 help() if(!$status || $switches{'h'});
 for (keys %switches) {
   switch($_) {
@@ -26,6 +26,7 @@ for (keys %switches) {
     case 'b'    { $both = 1; $name = 1; }
     case 'd'    { $alive = 0; }
     case 'f'    { $force = 1; }
+    case 'p'    { $print = 1; }
     case 'r'    { $alive = 1; }
     case 'n'    { $name = 1; }
     case 't'    { $time = 1; }
@@ -77,6 +78,10 @@ for(my $i = $start, my $k = 1; $i <= $end; $i++, $k++) {
     if($hostaddr ne "") {
       $ip = ($both) ? "$ip\t$hostaddr" : "$hostaddr";
     }
+  }
+
+  if($print) {
+    $ip = ($reachable) ? "o $ip" : "x $ip";
   }
 
   if($reachable) {
@@ -155,6 +160,7 @@ sub help {
   print "\t-d\t\tList dead addresses\n";
   print "\t-f\t\tForce hostname lookup even if unreachable\n";
   print "\t-n\t\tReturn list as hostnames when possible\n";
+  print "\t-p\t\tEnable print mode; only noticeable with -a enabled\n";
   print "\t-r\t\tList reachable addresses (default)\n";
   print "\t-t\t\tTime ping execution\n";
   exit(1);
