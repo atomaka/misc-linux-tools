@@ -6,6 +6,7 @@ use POSIX;
 use Socket;
 use Switch;
 use Time::HiRes qw/time/;
+use Term::ANSIColor;
 
 # force print before buffer is full
 $| = 1;
@@ -14,13 +15,14 @@ $| = 1;
 die("pinger must be run as root\n") if($> != 0);
 
 my $alive = 1;
-my(%switches, $both, $time, $name, $force, $startTime, $finishTime);
+my(%switches, $all, $both, $time, $name, $force, $startTime, $finishTime);
 
 # handle command line options
-my $status = getopts('bdfrnth', \%switches);
+my $status = getopts('abdfrnth', \%switches);
 help() if(!$status || $switches{'h'});
 for (keys %switches) {
   switch($_) {
+    case 'a'    { $all = 1; }
     case 'b'    { $both = 1; $name = 1; }
     case 'd'    { $alive = 0; }
     case 'f'    { $force = 1; }
@@ -36,7 +38,7 @@ die("Usage: pinger START_IP [END_IP]\n")if(scalar(@ARGV) < 1 || scalar(@ARGV) > 
 
 $startTime = time if($time);
 my $p = Net::Ping->new('icmp');
-my @ips;
+my(@reachable_ips,@unreachable_ips);
 
 # must be IP addresses
 if($ARGV[0] !~ /((?:\d{1,3}\.){3}\d{1,3})/ || (defined($ARGV[1]) && $ARGV[1] !~ /((?:\d{1,3}\.){3}\d{1,3})/)) {
@@ -70,22 +72,38 @@ for(my $i = $start, my $k = 1; $i <= $end; $i++, $k++) {
   my $ip = $baseIp . '.' . $i;
 
   my $reachable = $p->ping($ip, 1);
-  if($reachable == $alive) {
-    if($name && ($reachable || $force)) {
-      my $hostaddr = gethostbyaddr(inet_aton($ip), AF_INET);
-      if($hostaddr ne "") {
-        $ip = ($both) ? "$ip\t$hostaddr" : "$hostaddr";
-      }
+  if($name && ($reachable || $force)) {
+    my $hostaddr = gethostbyaddr(inet_aton($ip), AF_INET);
+    if($hostaddr ne "") {
+      $ip = ($both) ? "$ip\t$hostaddr" : "$hostaddr";
     }
+  }
 
-    push(@ips, $ip);
+  if($reachable) {
+    push(@reachable_ips, colored($ip, 'green'));
+  } else {
+    push(@unreachable_ips, colored($ip, 'red'));
   }
 }
 $p->close();
 $finishTime = time if($time);
 
 print "\n\n";
-($alive) ? print "Reachable:\n" : print "Dead:\n";
+my @ips;
+if($all) {
+  print "All:\n";
+  @ips = (@reachable_ips, @unreachable_ips);
+  @ips =  map  { $_->[0] }
+          sort { $a->[1] <=> $b->[1] }
+          map  { [$_, int sprintf("%03.f%03.f%03.f%03.f", split(/\.+/, $_))] }
+          @ips;
+} elsif($alive) {
+  print "Reachable:\n";
+  @ips = @reachable_ips;
+} else {
+  print "Dead:\n";
+  @ips = @unreachable_ips;
+}
 my $delimeter = ($both) ? "\n" : ", ";
 print join($delimeter, @ips);
 print "\n\n";
@@ -132,6 +150,7 @@ sub progressBar {
 
 sub help {
   print "usage:\t pinger [-d] start [finish]\n\n";
+  print "\t-a\t\tList both reachable and unreachable hosts\n";
   print "\t-b\t\tList both hostname and ip address\n";
   print "\t-d\t\tList dead addresses\n";
   print "\t-f\t\tForce hostname lookup even if unreachable\n";
