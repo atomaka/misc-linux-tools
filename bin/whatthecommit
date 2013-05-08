@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+git add .
+curl -s whatthecommit.com | sed 's/<[^>]\+>//g' | sed '1,39d' | head -1 | xargs -0 git commit -m 
