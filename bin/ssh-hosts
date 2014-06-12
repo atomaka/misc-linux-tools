@@ -1,0 +1,110 @@
+#!/bin/bash
+IFS=$'\n'
+
+readonly PROGRAM_NAME=$(basename $0)
+readonly PROGRAM_LOC=$(readlink -m $(dirname $0))
+readonly ARGS="$@"
+
+readonly SSH_CONFIG_FILE=~/.ssh/config
+
+error () {
+  echo $PROGRAM_NAME: missing operand
+  echo Try \'$PROGRAM_NAME --help\' for information.
+  exit 0
+}
+
+usage () {
+  echo usage: $PROGRAM_NAME options
+  echo "Try '$PROGRAM_NAME -h' for more information."
+  exit 0
+}
+
+info () {
+  cat <<- EOF
+  usage: $PROGRAM_NAME options
+
+  Used to make hosts configured in a .ssh config file easily accesible.
+  It pulls in the .ssh/config file from the user's home directory and
+  prints it based on options.
+
+  OPTIONS:
+    -g                      List all the different groups of hosts
+    -l                      List all hosts for a specific group number
+    -h                      This help information
+
+  Examples:
+    List all groups
+    $PROGRAM_NAME -g
+
+    List all hosts for group 3
+    $PROGRAM_NAME -l 3
+EOF
+  exit
+}
+
+ssh_config () {
+  cat $SSH_CONFIG_FILE
+}
+
+ssh_groups () {
+  ssh_config \
+    | grep --regexp=^# \
+    | /usr/bin/tr -d '#'
+}
+
+ssh_hosts_for_group () {
+  local readonly group=$1; shift
+
+  local readonly groups=($(ssh_groups))
+
+  local readonly start=${groups[$group]}
+  local readonly end=${groups[$group + 1]}
+
+  ssh_config \
+    | sed -n "/$start/,/$end/p" \
+    | /usr/bin/head -n -1
+}
+
+show_ssh_groups () {
+  local groups=($(ssh_groups))
+
+  local group
+  local group_number=0
+  for group in "${groups[@]}"
+  do
+    echo "$group_number) $group"
+    group_number=$[$group_number + 1]
+  done
+}
+
+show_hosts_for_ssh_group () {
+  local readonly group=$1; shift
+
+  ssh_hosts_for_group $group
+}
+
+cmdline () {
+  while getopts ":gl:h" opt; do
+    case "${opt}" in
+      g)
+        show_ssh_groups
+        ;;
+      l)
+        show_hosts_for_ssh_group $OPTARG
+        ;;
+      h)
+        info
+        ;;
+      *)
+        usage
+        ;;
+    esac
+  done
+  shift $((OPTIND-1))
+}
+
+main () {
+  cmdline $ARGS
+}
+
+main
