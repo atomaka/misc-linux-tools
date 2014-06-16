@@ -66,7 +66,7 @@ ssh_hosts_for_group () {
 }
 
 show_ssh_groups () {
-  local groups=($(ssh_groups))
+  local readonly groups=($(ssh_groups))
 
   local group
   local group_number=0
@@ -95,11 +95,21 @@ cmdline () {
       h)
         info
         ;;
+      :)
+        echo "Option -$OPTARG requires an argument." >&2
+        exit
+        ;;
       *)
         usage
         ;;
     esac
   done
+
+  if [ $OPTIND -eq 1 ]
+  then
+    usage
+  fi
+
   shift $((OPTIND-1))
 }
 
