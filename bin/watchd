@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 readonly PROGRAM_NAME=$(basename "$0")
 readonly PROGRAM_LOC=$(readlink -m "$(dirname $0)")
@@ -37,34 +37,34 @@ alert_update () {
   echo "[$now] Directory Updated"
 }
 
-is_dir? () {
+directory? () {
   local readonly directory=$1; shift
 
   [[ -d $directory ]]
 }
 
-is_int? () {
+integer? () {
   local readonly number=$1; shift
 
   [[ $number =~ ^[0-9]+$ ]]
 }
 
-is_empty? () {
+empty? () {
   local var=$1; shift
 
   [[ -z $var ]]
 }
 
 check_arguments () {
-  if is_empty? "$DIRECTORY" || is_empty? "$WAIT_TIME"; then
+  if empty? "$DIRECTORY" || empty? "$WAIT_TIME"; then
     error "missing operand"
   fi
 
-  if ! is_dir? "$DIRECTORY"; then
+  if ! directory? "$DIRECTORY"; then
     error "$DIRECTORY is not a directory"
   fi
 
-  if ! is_int? "$WAIT_TIME"; then
+  if ! integer? "$WAIT_TIME"; then
     error "$WAIT_TIME is not an integer"
   fi
 }

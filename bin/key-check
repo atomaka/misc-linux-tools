@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 trap "exit 1" TERM
 export TOP_PID=$$
@@ -79,7 +79,7 @@ incorrect_number_of_arguments () {
   test $ARG_COUNT -ne 3
 }
 
-is_file () {
+file? () {
   local readonly file=$1
 
   [[ -f $file ]]
@@ -94,15 +94,15 @@ main () {
     usage
   fi
 
-  if ! is_file $certificate; then
+  if ! file? $certificate; then
     file_error $certificate
   fi
 
-  if ! is_file $key; then
+  if ! file? $key; then
     file_error $key
   fi
 
-  if ! is_file $csr; then
+  if ! file? $csr; then
     file_error $csr
   fi
 
