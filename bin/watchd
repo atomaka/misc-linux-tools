@@ -1,0 +1,99 @@
+#!/bin/bash
+
+readonly PROGRAM_NAME=$(basename "$0")
+readonly PROGRAM_LOC=$(readlink -m "$(dirname $0)")
+readonly ARGS="$@"
+readonly ARG_COUNT="$#"
+
+LAST_SHA=0
+
+usage () {
+  echo "usage: $PROGRAM_NAME [DIRECTORY] [WAIT_TIME]"
+}
+
+error () {
+  local readonly message=$1; shift
+
+  echo "$PROGRAM_NAME: $message"
+  usage
+  exit 1
+}
+
+current_sha () {
+  ls -lR "$DIRECTORY" \
+    | sha1sum
+}
+
+sha_changed? () {
+  [[ "$(current_sha)" != "$LAST_SHA" ]]
+}
+
+update_sha () {
+  LAST_SHA=$(current_sha)
+}
+
+alert_update () {
+  now=$(date +"%Y-%m-%d %I:%M:%S")
+  echo "[$now] Directory Updated"
+}
+
+is_dir? () {
+  local readonly directory=$1; shift
+
+  [[ -d $directory ]]
+}
+
+is_int? () {
+  local readonly number=$1; shift
+
+  [[ $number =~ ^[0-9]+$ ]]
+}
+
+is_empty? () {
+  local var=$1; shift
+
+  [[ -z $var ]]
+}
+
+check_arguments () {
+  if is_empty? "$DIRECTORY" || is_empty? "$WAIT_TIME"; then
+    error "missing operand"
+  fi
+
+  if ! is_dir? "$DIRECTORY"; then
+    error "$DIRECTORY is not a directory"
+  fi
+
+  if ! is_int? "$WAIT_TIME"; then
+    error "$WAIT_TIME is not an integer"
+  fi
+}
+
+run () {
+  while true; do
+    if sha_changed?; then
+      update_sha
+      alert_update
+    fi
+
+    sleep "$WAIT_TIME"
+  done
+}
+
+main () {
+  local readonly d=$1; shift
+  local readonly w=$1; shift
+
+  readonly DIRECTORY=${d:-$(pwd)}
+  readonly WAIT_TIME=${w:-15}
+
+  check_arguments
+  update_sha
+
+  echo "--------------------------------------------------------------------------------"
+  echo "+ Monitoring $DIRECTORY at interval $WAIT_TIME seconds"
+  echo "--------------------------------------------------------------------------------"
+  run
+}
+
+main $ARGS
