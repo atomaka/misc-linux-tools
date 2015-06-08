@@ -1,0 +1,40 @@
+#!/usr/bin/env ruby
+
+require 'pp'
+
+class SSHKey
+  def initialize(block)
+    parse(block)
+  end
+
+  private
+
+  def parse(block)
+    pairs = Hash[*block.split("\n").map { |p| p.strip.split(' ') }.flatten]
+    @Host = pairs.delete('Host')
+
+    pairs.each { |key, value| instance_variable_set("@#{key}", value) }
+  end
+end
+
+def retrieve_ssh_keys(config_file)
+  config = File.new(config_file, 'r')
+
+  current = ''
+  keys = Array.new
+  config.each_line do |line|
+    next if line.include?('#')
+    if line.start_with?('Host')
+      keys << SSHKey.new(current)
+      current = ''
+    end
+    current += line
+  end
+
+  return keys
+end
+
+
+keys = retrieve_ssh_keys('/home/atomaka/.ssh/config')
+pp keys
+
